@@ -1,0 +1,102 @@
+Add-DhcpServerv4Reservation -ComputerName $Server -ScopeId $ScopeID -IPAddress $IPReservation -Name $ResName -Type Both -ClientId $ResMAC
+
+Get-DhcpServerv4FreeIPAddress -ComputerName MTEGAAD01v -ScopeId 10.44.205.209 -NumAddress 10
+
+Get-DhcpServerv4Scope -ComputerName MTADIP01V -ScopeId 10.44.204.252
+
+Add-DhcpServerv4Reservation -ComputerName MTADIP01V -ScopeId 10.128.98.26 -IPAddress 10.128.98.25 -Name PRN-DNG-STN-00-0075 -Type Both -ClientId 00206BB716DD -Description C308
+
+Import-Csv C:\Temp\addresses.csv | Add-DhcpServerv4Reservation -ComputerName MTTPHAD01v
+
+Restart-Computer -ComputerName 10.44.184.40  –Credential ma.kiel.barber -force
+
+Get-DhcpServerv4Scope -ComputerName mtchoad01p | Get-DhcpServerv4lease -ComputerName mtchoad01p | Where-Object {$_.HostName -like "*mt-lt03243*"} | Select-Object -Property IPAddress, ClientID, Name,Scopeid, description  | ft -autosize
+Get-DhcpServerv4Scope -ComputerName mttphad01v | Get-DhcpServerv4lease -ComputerName mttphad01v | Where-Object {$_.ClientID -like "*00-21-B7-BB-E2*"} | Select-Object -Property IPAddress, ClientID, Name,Scopeid, description  | ft -autosize
+
+Get-DhcpServerv4Scope -ComputerName mtadip01v | Select-Object -Property Scopeid, description | ft -autosize
+
+Get-Printer -ComputerName mtaprn101v | Where-Object {$_.name -like "*PRN-EG*"}
+
+Get-DhcpServerv4Reservation -ComputerName mtegaad01v  -ScopeId 10.44.204.0 
+
+Get-EventLog -LogName Security | ?{$_.message -like "*locked*kiel.barber*"} | fl -property * 
+
+Get-Printer -ComputerName MTAPRN101v | Select-Object -Property Name, DriverName, PortName,location | Export-Csv -Path C:\Users\ma.kiel.barber\Desktop\printer.csv | Where-Object {$_.Name -like "*PRN-CHO*"} | 
+
+Get-PrintConfiguration -ComputerName MTAPRN101v -PrinterName PRN-FSS-OFF-01-0129.
+
+Get-ADUser -Filter * -Properties mobile, Department | Select-Object Name,mobile,SamAccountName,enabled,objectclass,GivenName,Surname,Department,UserPrincipalName  | export-csv -Path C:\Users\ma.kiel.barber\Desktop\adusers.csv
+Get-ADUser -Filter * -Properties mobile, Department, extensionAttribute1 | Select-Object Name,mobile,SamAccountName,enabled,objectclass,GivenName,Surname,Department,UserPrincipalName, extensionAttribute1 | Export-Csv -Path C:\Users\ma.kiel.barber\Desktop\adusers.csv
+Get-ADUser -Filter * -Properties * | Where-Object {$_.extensionAttribute13 -ne $null  -and  $_.enabled -like "*True*" } | Select-Object 'Name','extensionAttribute13','enabled'
+Get-ADUser -Filter * -Properties * | Where-Object {$_.mobile -ne $null  -and  $_.enabled -like "*True*" } | Select-Object 'SamAccountName','mobile','enabled' | Export-Csv -Path C:\Users\ma.kiel.barber\Desktop\admobile.csv
+Get-Printer -ComputerName MTAPRN101v | Select-Object -Property Name, DriverName, PortName,location| Export-Csv -Path C:\Users\ma.kiel.barber\Desktop\printerlocationrefresh.csv
+
+Get-ADUser -Filter * -Properties * | Where-Object {$_.extensionAttribute13 -ne $null  -and  $_.enabled -like "*True*" } | Select-Object 'Name','extensionAttribute13','enabled'
+
+
+Get-ADUser -Filter * -Properties * | Where-Object {$_.name -like "*kiel*" -and  $_.useraccountcontrol -like "*512*" } | Select-Object 'Name','extensionAttribute1','enabled','distinguishedName','sn','l','title','physicalDeliveryOfficeName','telephoneNumber','givenname','displayname','co','department','company','mail','useraccountcontrol'
+
+$rptCol = @()
+
+get-printer -computername MTAPRN101v | select name | % {
+	$rptCol += $($_.name).split('-')[4]
+}
+
+Write-Host "The last Printer number on the print server is: $(([int]($rptCol | sort | select -Last 1)).ToString("0000"))" -ForegroundColor Yellow
+Write-Host "The next Printer will be numbered: $(([int]($rptCol | sort | select -Last 1) + 1).ToString("0000"))" -ForegroundColor Green
+
+get-adgroup -Filter "name -like '*chrome*'" -Properties *  | select name, CanonicalName | Where-Object {$_.CanonicalName -like "*PROD*" -or $_.CanonicalName -like "*Application Deployment*" }
+
+Get-ADComputer -Filter "description -like '*Kiel*'" -Properties * | select name, CanonicalName, description
+Get-ADComputer -Filter "name -like '*pc-lt07086*'" -Properties * | select name, CanonicalName, description
+
+Get-ADComputer -Filter {description -like '*Kiel*'} -Properties * | select name, CanonicalName, description | foreach {Get-WmiObject -Class win32_bios -ComputerName $_.Name } | Select-Object -property serialnumber
+
+
+Get-DistributionGroupMember -Identity "#DL-LXRP-All Staff"
+
+get-aduser -Filter "name -like '*Preston*'" -Properties *
+
+Get-AdGroupMember -identity "#DL-Engineering Division" | select name
+
+$groups = get-content C:\Temp\KB\groups.txt
+$names = get-content C:\Temp\KB\users.txt
+foreach ($aduser in $names) { foreach ($adgroups in $groups) { remove-adgroupmember $adgroups –members $aduser -confirm:$false } } 
+
+
+$userlist = get-content C:\Temp\KB\users.txt
+Get-ADUser -Filter '*' -Properties memberof | Where-Object {
+  $userlist -contains $_.SamAccountName
+} | ForEach-Object {
+  $username = $_ | Select name 
+  $groups = $_ | Select-Object -Expand memberof |
+            ForEach-Object { (Get-ADGroup $_).Name }
+  "{0}: {1}" -f $username, ($groups -join ', ')
+} 
+
+Param(
+  [Parameter(Mandatory=$true, position=0)][string]$csvfile
+)
+
+$ColumnHeader = "IPaddress"
+
+Write-Host "Reading file" $csvfile
+$ipaddresses = import-csv $csvfile | select-object $ColumnHeader
+
+Write-Host "Started Pinging.."
+foreach( $ip in $ipaddresses) {
+    if (test-connection $ip.("IPAddress") -count 1 -quiet) {
+        write-host $ip.("IPAddress") "Ping succeeded." -foreground green
+
+    } else {
+         write-host $ip.("IPAddress") "Ping failed." -foreground red
+    }
+    
+}
+
+Write-Host "Pinging Completed."
+
+$remotedevice = "MT-PC02689"
+
+Copy-Item -Path C:\Temp\locations.config -Destination "\\$remotedevice\c$\Program Files (x86)\SafeQ6\FSP_6_19_3\Service"
+Get-Service -Name YSoftSQ-FSP  -ComputerName "$remotedevice" | Restart-Service
